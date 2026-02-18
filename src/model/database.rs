@@ -1,10 +1,13 @@
 use super::page::Page;
+use serde::Serialize;
 
-pub struct Database{
+#[derive(Serialize)]
+pub struct Database {
     pub database_header: DatabaseHeader,
     pub pages: Vec<Page>,
 }
 
-pub struct DatabaseHeader{
+#[derive(Serialize)]
+pub struct DatabaseHeader {
     pub page_size: u16,
 }
