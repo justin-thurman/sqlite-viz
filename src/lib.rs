@@ -1,4 +1,6 @@
 mod utils;
+mod model;
+mod parser;
 
 use wasm_bindgen::prelude::*;
 
