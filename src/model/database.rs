@@ -1,9 +1,9 @@
-use super::page::Page;
+use super::page::{FirstPage, Page};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Database {
-    pub database_header: DatabaseHeader,
+    pub first_page: FirstPage,
     pub pages: Vec<Page>,
 }
 
