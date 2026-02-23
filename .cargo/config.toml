@@ -1,2 +1,2 @@
 [build]
-target = "wasm32-unknown-unknown"
+#target = "wasm32-unknown-unknown" # this should be unnecessary, and it's messing with tests, commenting out for now to test if anything breaks
