@@ -23,6 +23,19 @@ impl<'a> Cursor<'a> {
         u16::from_be_bytes(self.read_array::<2>())
     }
 
+    pub fn u16_vec_from_be(&mut self, count: usize) -> Vec<u16> {
+        // TODO: consider non-panic version; still haven't decided where I want bounds checks to happen
+        // TODO: generalize this if we end up duplicating for 3+ types (i.e., u8, u32)
+        let start = self.position;
+        let end = start + count * 2;
+        let vec: Vec<u16> = self.data[start..end]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+            .collect();
+        self.position += count * 2;
+        vec
+    }
+
     pub fn u32_from_be(&mut self) -> u32 {
         u32::from_be_bytes(self.read_array::<4>())
     }
@@ -42,6 +55,18 @@ mod tests {
 
         assert_eq!(cursor.u16_from_be(), 1024);
         assert_eq!(cursor.position, 2);
+    }
+
+    #[test]
+    fn u16_vec_from_be() {
+        let data = [0x04, 0x00, 0x04, 0x00, 0x04, 0x00];
+        let mut cursor = Cursor {
+            data: &data,
+            position: 0,
+        };
+
+        assert_eq!(cursor.u16_vec_from_be(2), [1024, 1024]);
+        assert_eq!(cursor.position, 4);
     }
 
     #[test]

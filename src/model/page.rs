@@ -11,6 +11,7 @@ pub struct Page {}
 pub struct FirstPage {
     pub database_header: DatabaseHeader,
     pub page_header: PageHeader,
+    pub cell_ptr_array: Vec<u16>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]

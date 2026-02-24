@@ -22,9 +22,11 @@ pub fn parse_first_page(cursor: &mut Cursor) -> Result<FirstPage> {
         bail!("File length is not an exact multiple of page size")
     }
     let page_header = parse_page_header(cursor).context("Failed to parse page header")?;
+    let cell_ptr_array = cursor.u16_vec_from_be(page_header.num_cells as usize);
     Ok(FirstPage {
         database_header,
         page_header,
+        cell_ptr_array,
     })
 }
 
