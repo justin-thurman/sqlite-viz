@@ -19,12 +19,13 @@ pub struct PageHeader {
     pub page_type: BTreePageType, // TODO: currently treating all pages as B-tree; will decide how to split up later
     pub first_freeblock_start: u16, // 0 -> no freeblocks
     pub num_cells: u16,
+    // TODO: where to handle the 0 case?
     pub cell_content_area_start: u16, // 0 -> 65536
     pub num_fragmented_free_bytes: u8,
     pub rightmost_ptr: Option<u32>, // present only for interior b-tree pages
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq, Copy, Clone)]
 pub enum BTreePageType {
     IndexInterior,
     IndexLeaf,
