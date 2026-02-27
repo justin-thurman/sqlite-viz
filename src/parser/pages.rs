@@ -1,9 +1,10 @@
 use anyhow::{bail, Context, Result};
+use std::convert::TryInto;
 
 use crate::model::database::DatabaseHeader;
 use crate::model::database::FileFormatVersion;
 use crate::model::database::TextEncoding;
-use crate::model::page::FirstPage;
+use crate::model::page::{BTreePageType, FirstPage, PageHeader};
 use crate::parser::primitives::Cursor;
 
 pub fn parse_first_page(cursor: &mut Cursor) -> Result<FirstPage> {
@@ -12,10 +13,24 @@ pub fn parse_first_page(cursor: &mut Cursor) -> Result<FirstPage> {
         cursor.position, 100,
         "Cursor position not correct after reading database header"
     );
-    Ok(FirstPage { database_header })
+    if !cursor
+        .data
+        .len()
+        .is_multiple_of(database_header.page_size as usize) as usize
+        != 0
+    {
+        bail!("File length is not an exact multiple of page size")
+    }
+    let page_header = parse_page_header(cursor).context("Failed to parse page header")?;
+    let cell_ptr_array = cursor.u16_vec_from_be(page_header.num_cells as usize);
+    Ok(FirstPage {
+        database_header,
+        page_header,
+        cell_ptr_array,
+    })
 }
 
-pub fn parse_database_header(cursor: &mut Cursor) -> Result<DatabaseHeader> {
+fn parse_database_header(cursor: &mut Cursor) -> Result<DatabaseHeader> {
     let header_bytes = cursor.read_array::<16>();
     let header_string =
         str::from_utf8(&header_bytes).context("Failed to parse first 16 bytes to string")?;
@@ -23,9 +38,6 @@ pub fn parse_database_header(cursor: &mut Cursor) -> Result<DatabaseHeader> {
         bail!("Header string is invalid: {}", header_string)
     }
     let page_size = cursor.u16_from_be();
-    if !cursor.data.len().is_multiple_of(page_size as usize) as usize != 0 {
-        bail!("File length is not an exact multiple of page size")
-    }
 
     let file_format_write_version: FileFormatVersion = cursor.u8_from_be().into();
     let file_format_read_version: FileFormatVersion = cursor.u8_from_be().into();
@@ -104,6 +116,26 @@ pub fn parse_database_header(cursor: &mut Cursor) -> Result<DatabaseHeader> {
     })
 }
 
+fn parse_page_header(cursor: &mut Cursor) -> Result<PageHeader> {
+    let page_type: BTreePageType = cursor.u8_from_be().try_into()?;
+    let first_freeblock_start = cursor.u16_from_be();
+    let num_cells = cursor.u16_from_be();
+    let cell_content_area_start = cursor.u16_from_be();
+    let num_fragmented_free_bytes = cursor.u8_from_be();
+    let rightmost_ptr = match page_type.is_interior() {
+        true => Some(cursor.u32_from_be()),
+        false => None,
+    };
+    Ok(PageHeader {
+        page_type,
+        first_freeblock_start,
+        num_cells,
+        cell_content_area_start,
+        num_fragmented_free_bytes,
+        rightmost_ptr,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +176,29 @@ mod tests {
         };
 
         let result = parse_database_header(&mut cursor).expect("Parsing header should succeed");
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn parse_page_header_success() {
+        let data =
+            std::fs::read("tests/fixtures/test.db").expect("Failed to read database fixture");
+
+        let mut cursor = Cursor {
+            data: &data,
+            position: 100,
+        };
+        let expected = PageHeader {
+            page_type: BTreePageType::TableLeaf,
+            first_freeblock_start: 0,
+            num_cells: 2,
+            cell_content_area_start: 3943,
+            num_fragmented_free_bytes: 0,
+            rightmost_ptr: None,
+        };
+
+        let result = parse_page_header(&mut cursor).expect("Parsing header should succeed");
 
         assert_eq!(expected, result);
     }
