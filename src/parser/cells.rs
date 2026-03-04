@@ -1,4 +1,7 @@
+use crate::model::cell::BTreeTableLeafCell;
 use crate::model::page::BTreePageType;
+use crate::parser::primitives::Cursor;
+use anyhow::{Context, Result};
 
 // From https://www.sqlite.org/fileformat.html#b_tree_pages:
 // U = usable size of a database page (total page size - reserved space) or (page_size - reserved_bytes)
@@ -45,6 +48,51 @@ pub fn calculate_amount_payload_on_page(
         return k;
     }
     min_payload_stored_on_page
+}
+
+pub fn parse_cells(
+    cursor: &mut Cursor,
+    cell_ptr_array: &[u16],
+    page_type: BTreePageType,
+    usable_page_size: u16,
+) -> Result<Vec<BTreeTableLeafCell>> {
+    match page_type {
+        BTreePageType::TableLeaf => {
+            let mut cells: Vec<BTreeTableLeafCell> = Vec::new();
+            for cell_ptr in cell_ptr_array {
+                cursor.seek(*cell_ptr as usize);
+                let cell = parse_btree_table_leaf_cell(cursor, usable_page_size)
+                    .context("Failed to parse cells")?;
+                cells.push(cell);
+            }
+            Ok(cells)
+        }
+        _ => {
+            todo!()
+        }
+    }
+}
+
+fn parse_btree_table_leaf_cell(
+    cursor: &mut Cursor,
+    usable_page_size: u16,
+) -> Result<BTreeTableLeafCell> {
+    let payload_size_bytes = cursor
+        .read_varint()
+        .context("Failed to parse payload size bytes")?;
+    let rowid = cursor.read_varint().context("Failed to parse rowid")?;
+    let payload_size_on_page_bytes = calculate_amount_payload_on_page(
+        usable_page_size as u64,
+        payload_size_bytes as u64,
+        BTreePageType::TableLeaf,
+    );
+    // TODO: handle overflow page list
+    Ok(BTreeTableLeafCell {
+        payload_size_bytes,
+        rowid,
+        payload_size_on_page_bytes,
+        first_overflow_page_num: None,
+    })
 }
 
 #[cfg(test)]

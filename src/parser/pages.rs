@@ -5,6 +5,7 @@ use crate::model::database::DatabaseHeader;
 use crate::model::database::FileFormatVersion;
 use crate::model::database::TextEncoding;
 use crate::model::page::{BTreePageType, FirstPage, PageHeader};
+use crate::parser::cells::parse_cells;
 use crate::parser::primitives::Cursor;
 
 pub fn parse_first_page(cursor: &mut Cursor) -> Result<FirstPage> {
@@ -21,12 +22,26 @@ pub fn parse_first_page(cursor: &mut Cursor) -> Result<FirstPage> {
     {
         bail!("File length is not an exact multiple of page size")
     }
+    let usable_page_size = database_header.page_size - database_header.reserved_bytes as u16;
     let page_header = parse_page_header(cursor).context("Failed to parse page header")?;
     let cell_ptr_array = cursor.u16_vec_from_be(page_header.num_cells as usize);
+    let cells = parse_cells(
+        cursor,
+        &cell_ptr_array,
+        page_header.page_type,
+        usable_page_size,
+    )
+    .context("Failed to parse page cells")?;
+    assert_eq!(
+        cells.len(),
+        cell_ptr_array.len(),
+        "Number of parsed cells does not match length of cell pointer array"
+    );
     Ok(FirstPage {
         database_header,
         page_header,
         cell_ptr_array,
+        cells,
     })
 }
 

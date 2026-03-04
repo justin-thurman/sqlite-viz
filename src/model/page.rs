@@ -1,3 +1,4 @@
+use crate::model::cell::BTreeTableLeafCell;
 use crate::model::database::DatabaseHeader;
 use crate::model::page::BTreePageType::{IndexInterior, IndexLeaf, TableInterior, TableLeaf};
 use serde::Serialize;
@@ -7,11 +8,13 @@ use thiserror::Error;
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct Page {}
 
+// FIXME: currently assuming all pages are b tree leaf. Will need to fix. Each page has its own cell type.
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct FirstPage {
     pub database_header: DatabaseHeader,
     pub page_header: PageHeader,
     pub cell_ptr_array: Vec<u16>,
+    pub cells: Vec<BTreeTableLeafCell>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]

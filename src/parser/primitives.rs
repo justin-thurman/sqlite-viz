@@ -15,6 +15,10 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
+    pub fn seek(&mut self, position: usize) {
+        self.position = position
+    }
+
     fn read_byte(&mut self) -> Result<u8, Error> {
         let byte = self
             .data
