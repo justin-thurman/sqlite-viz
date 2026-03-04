@@ -1,3 +1,4 @@
+mod cells;
 mod database;
 mod pages;
 mod primitives;
